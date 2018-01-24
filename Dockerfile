@@ -9,6 +9,6 @@ COPY ["requirements.txt", "${APPROOT}"]
 
 WORKDIR $APPROOT
 
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt pymcx-0.1-py3-none-linux_x86_64.whl
 
 CMD ["nirs_sim_app.py", "--json"]

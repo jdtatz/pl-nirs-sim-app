@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pymcx import MCX
 
-def run(spec, cw_analysis, fd_analysis, wavelength, modulation_frequency_mhz):
+def simulate(spec, cw_analysis, fd_analysis, wavelength, modulation_frequency_mhz):
     cfg = spec.mcx
     seeds = np.random.randint(0xFFFF, size=spec.run_count)
     results = []
