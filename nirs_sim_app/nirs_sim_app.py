@@ -101,7 +101,7 @@ class Nirs_sim_app(ChrisApp):
         # Run simulation
         results = simulate(spec, options.cw_analysis, options.fd_analysis, options.wavelength, options.modulation_frequency_mhz)
         # Save Results
-        out_name = "results_{}_{}".format(spec['uuid'], options.wavelength)
+        out_name = "results_{}_{}.bz2".format(spec['uuid'], options.wavelength)
         with bz2.open(os.path.join(options.outputdir, out_name), 'w') as arc:
             arc.write(dill.dumps(results))
 

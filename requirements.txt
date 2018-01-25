@@ -2,4 +2,3 @@ chrisapp==1.0.5
 dill
 numpy
 pandas
-

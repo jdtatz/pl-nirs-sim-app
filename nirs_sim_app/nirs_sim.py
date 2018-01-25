@@ -17,7 +17,7 @@ def simulate(spec, cw_analysis, fd_analysis, wavelength, modulation_frequency_mh
         if result["exportdetected"].shape[1] >= cfg.maxdetphoton:
             raise Exception("Too many photons detected({}), check nphoton({}) and maxdetphoton({})".format(result["exportdetected"].shape, cfg.nphoton, cfg.maxdetphoton))
         results.append(result)
-    detps = np.concatenate([result["exportdetected"] for result in results], axis=1)
+    detp = np.concatenate([result["exportdetected"] for result in results], axis=1)
     intesity_0 = cfg.nphoton * run_count * spec['areas']
     num_media = cfg.prop.shape[0] - 1
     dets = [detp[0] == adet for adet in spec['analysis_dets']]
