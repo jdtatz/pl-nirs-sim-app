@@ -10,7 +10,7 @@
 
 import os
 import bz2
-import pickle
+import dill
 
 import numpy as np
 import pandas as pd
@@ -97,13 +97,13 @@ class Nirs_sim_app(ChrisApp):
         """
         # Load simulation params
         with bz2.open(os.path.join(options.inputdir, options.spec_file)) as f_in:
-            spec = pickle.loads(f_in.read())
+            spec = dill.loads(f_in.read())
         # Run simulation
         results = simulate(spec, options.cw_analysis, options.fd_analysis, options.wavelength, options.modulation_frequency_mhz)
         # Save Results
-        out_name = "results_{}_{}".format(spec.uuid, options.wavelength)
+        out_name = "results_{}_{}".format(spec['uuid'], options.wavelength)
         with bz2.open(os.path.join(options.outputdir, out_name), 'w') as arc:
-            arc.write(pickle.dumps(results))
+            arc.write(dill.dumps(results))
 
 # ENTRYPOINT
 if __name__ == "__main__":
