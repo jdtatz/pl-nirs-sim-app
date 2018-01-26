@@ -1,10 +1,25 @@
 import numpy as np
-import pandas as pd
 from pymcx import MCX
+
+def create_prop(spec, wavelen):
+    concentrations = spec['concentrations']
+    a = spec['scatter_a']
+    b = spec['scatter_b']
+    g = spec.get('g', 0.9)
+    ind = np.where(spec['waves'] == wavelen)[0][0]
+    extinction_coeffs = spec['lut'][ind] / 10
+    media = np.empty((len(concentrations) + 1, 4), np.float64)
+    media[0] = [0, 0, 1, spec.get('n_external', 1)]
+    media[1:, 0] = concentrations @ extinction_coeffs  # mua
+    media[1:, 1] = (a * wavelen ** (-b)) / (1-g)  # mus
+    media[1:, 2] = g
+    media[1:, 3] = spec.get('n', 1.37)
+    return media
+
 
 def simulate(spec, cw_analysis, fd_analysis, wavelength, modulation_frequency_mhz):
     cfg = spec['mcx']
-    cfg.prop = spec['create_prop'](wavelength)
+    cfg.prop = create_prop(spec, wavelength)
     run_count = spec.get('run_count', 1)
     if 'seeds' in spec:
         seeds = spec['seeds']
@@ -34,5 +49,5 @@ def simulate(spec, cw_analysis, fd_analysis, wavelength, modulation_frequency_mh
         mcx_FD_Phase = np.angle(mcx_FD_Rd)
         analysis['AC'] = mcx_FD_AC
         analysis['Phase'] = mcx_FD_Phase
-    return pd.DataFrame(analysis, index=spec['rhos'])
+    return analysis
 
