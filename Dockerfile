@@ -1,5 +1,9 @@
 # Docker file for the nirs_sim_app plugin app
 
+FROM nvidia/cuda:9.1-devel as builder
+
+RUN cd mcx && make pymcx
+
 FROM python:3-slim
 MAINTAINER fnndsc "dev@babymri.org"
 
@@ -10,7 +14,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 ENV APPROOT="/usr/src/nirs_sim_app"  VERSION="0.1"
 COPY ["nirs_sim_app", "${APPROOT}"]
 COPY ["requirements.txt", "${APPROOT}"]
-COPY ["pymcx*.whl", "${APPROOT}"]
+COPY --from=builder ["dist/pymcx*.whl", "${APPROOT}"]
 
 WORKDIR $APPROOT
 

@@ -1,0 +1,4 @@
+[submodule "mcx"]
+	path = mcx
+	url = https://github.com/jdtatz/mcx.git
+	branch = pythonModule
