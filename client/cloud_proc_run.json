@@ -1,0 +1,57 @@
+{
+    "action": "coordinate",
+    "threadAction": true,
+    "meta-store": {
+        "meta": "meta-compute",
+        "key": "jid"
+    },
+    "meta-data": {
+        "remote": {
+            "key": "%meta-store"
+        },
+        "localSource": {
+            "path": "~/nirs/in"
+        },
+        "localTarget": {
+            "path": "~/nirs/out/${proc_id}/",
+            "createDir": true
+        },
+        "specialHandling": {
+            "op": "plugin",
+            "cleanup": true
+        },
+        "transport": {
+            "mechanism": "compress",
+            "compress": {
+                "encoding": "none",
+                "archive": "zip",
+                "unpack": true,
+                "cleanup": true
+            }
+        },
+        "service": "${service}"
+    },
+    "meta-compute": {
+        "cmd": "$execshell $selfpath/$selfexec /share/incoming /share/outgoing --spec=${spec_file} --wavelength=${wavelength}",
+        "auid": "jacob",
+        "jid": "${proc_id}",
+        "threaded": true,
+        "container": {
+            "target": {
+                "image": "jdtatz/pl-nirs-sim-app",
+                "cmdParse": true
+            },
+            "manager": {
+                "image": "fnndsc/swarm",
+                "app": "swarm.py",
+                "env": {
+                    "meta-store": "key",
+                    "serviceType": "docker",
+                    "shareDir": "%shareDir",
+                    "serviceName": "${proc_id}"
+                }
+            }
+        },
+        "service": "${service}"
+    }
+}

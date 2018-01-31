@@ -17,11 +17,11 @@ def create_prop(spec, wavelen):
     return media
 
 
-def simulate(spec, cw_analysis, fd_analysis, wavelength, modulation_frequency_mhz):
+def simulate(spec, wavelength):
     cfg = spec['mcx']
     cfg.prop = create_prop(spec, wavelength)
     run_count = spec.get('run_count', 1)
-    seeds = spec.get('seeds', np.random.randint(0xFFFF, size=run_count))
+    seeds = np.asarray(spec.get('seeds', np.random.randint(0xFFFF, size=run_count)))
     results = []
     for seed in seeds:
         cfg.seed = int(seed)
