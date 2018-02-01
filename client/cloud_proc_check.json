@@ -1,9 +1,0 @@
-{
-    "action": "status",
-    "threadAction": false,
-    "meta": {
-        "remote": {
-            "key": "${proc_id}"
-        }
-    }
-}

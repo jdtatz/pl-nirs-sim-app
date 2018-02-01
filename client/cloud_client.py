@@ -2,17 +2,83 @@ import os
 import time
 import json
 import subprocess
-from string import Template
+import numpy as np
 from pfurl.pfurl import Pfurl
 
 proc_id = "100"
 host_ip = subprocess.check_output("ip route | grep -v docker | awk '{if(NF==11) printf $9}'", shell=True, encoding ='UTF-8')
 
-with open('cloud_proc_run.json', 'r') as f:
-    proc_run_tmpl = Template(f.read())
 
-with open('cloud_proc_check.json', 'r') as f:
-    proc_check_tmpl = Template(f.read())
+def create_cloud_proc_run(proc_id, service, spec, wave):
+    return json.dumps({
+        "action": "coordinate",
+        "threadAction": True,
+        "meta-store": {
+            "meta": "meta-compute",
+            "key": "jid"
+        },
+        "meta-data": {
+            "remote": {
+                "key": "%meta-store"
+            },
+            "localSource": {
+                "path": "~/nirs/in"
+            },
+            "localTarget": {
+                "path": "~/nirs/out/{}/".format(proc_id),
+                "createDir": True
+            },
+            "specialHandling": {
+                "op": "plugin",
+                "cleanup": True
+            },
+            "transport": {
+                "mechanism": "compress",
+                "compress": {
+                    "encoding": "none",
+                    "archive": "zip",
+                    "unpack": True,
+                    "cleanup": True
+                }
+            },
+            "service": service
+        },
+        "meta-compute": {
+            "cmd": "$execshell $selfpath/$selfexec /share/incoming /share/outgoing --spec={} --wavelength={}".format(spec, wave),
+            "auid": "jacob",
+            "jid": proc_id,
+            "threaded": True,
+            "container": {
+                "target": {
+                    "image": "jdtatz/pl-nirs-sim-app",
+                    "cmdParse": True
+                },
+                "manager": {
+                    "image": "fnndsc/swarm",
+                    "app": "swarm.py",
+                    "env": {
+                        "meta-store": "key",
+                        "serviceType": "docker",
+                        "shareDir": "%shareDir",
+                        "serviceName": proc_id
+                    }
+                }
+            },
+            "service": service
+        }
+    })
+
+
+def create_cloud_proc_check(proc_id):
+    return json.dumps({
+        "action": "status",
+        "threadAction": False,
+        "meta": {
+            "remote": {
+                "key": proc_id
+            }
+        }
+    })
 
 default = {
     "verb": "POST",
@@ -28,13 +94,13 @@ default = {
 }
 
 proc_ids = {}
-for wave in np.linspace(650, 1000, 100, dtype=np.int32):
-    pid = "nirs_sim_test_wave_%d" % wave
-    msg = json.loads(proc_run_tmpl.safe_substitute(proc_id=pid, service="host", spec_file="spec.xz", wavelength=wave))
+for wavelength in np.linspace(650, 1000, 100, dtype=np.int32):
+    pid = "nirs_sim_test_wave_%d" % wavelength
+    msg = create_cloud_proc_run(pid, "host", "spec.xz", wavelength)
     pf = Pfurl(**default, msg=msg)
     res = json.loads(pf())  # TODO: Check if succsses
-    print("Start:", wave, pid, res)
-    proc_ids[pid] = proc_check_tmpl.safe_substitute(proc_id=pid)
+    print("Start:", wavelength, pid, res)
+    proc_ids[pid] = create_cloud_proc_check(pid)
 
 while len(proc_ids):
     pid, msg = proc_ids.popitem()
