@@ -30,6 +30,7 @@ def simulate(spec, wavelength):
             raise Exception("Too many photons detected({}), check nphoton({}) and maxdetphoton({})".format(result["exportdetected"].shape, cfg.nphoton, cfg.maxdetphoton))
         results.append(result)
     detp = np.concatenate([result["exportdetected"] for result in results], axis=1)
+    fluence = sum(result["exportfield"] for result in results) / len(seeds)
     tof_domain = np.append(np.arange(cfg.tstart, cfg.tend, cfg.tstep), cfg.tend)
     c = 2.998e+11 # speed of light in mm / s
     detTOF = (cfg.prop[1:, 3] @ detp[2:(len(cfg.prop) + 1)]) / c
@@ -41,4 +42,4 @@ def simulate(spec, wavelength):
     partialVec = np.exp(-cfg.prop[1:, 0] @ detp[2:(len(cfg.prop) + 1)])
     phiTD = np.zeros((n1, n2), np.float32)
     np.add.at(phiTD, (detBins, tofBins), partialVec)
-    return {'Photons': photon_counts, 'Phi': phiTD, 'Seeds': seeds}
+    return {'Photons': photon_counts, 'Phi': phiTD, 'Seeds': seeds, 'Slice': fluence[spec['slice']]}

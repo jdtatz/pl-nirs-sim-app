@@ -25,8 +25,8 @@ def create_cloud_proc_run(proc_id, service, spec, wave):
                 "path": "~/nirs/in"
             },
             "localTarget": {
-                "path": "~/nirs/out/{}/".format(proc_id),
-                "createDir": True
+                "path": "~/nirs/out",
+                "createDir": False
             },
             "specialHandling": {
                 "op": "plugin",
@@ -98,18 +98,32 @@ for wavelength in np.linspace(650, 1000, 100, dtype=np.int32):
     pid = "nirs_sim_test_wave_%d" % wavelength
     msg = create_cloud_proc_run(pid, "host", "spec.xz", wavelength)
     pf = Pfurl(**default, msg=msg)
-    res = json.loads(pf())  # TODO: Check if succsses
-    print("Start:", wavelength, pid, res)
-    proc_ids[pid] = create_cloud_proc_check(pid)
+    res = pf()
+    if res:
+        result = json.loads(res)
+        if(result['status']):
+            print("Start:", wavelength, pid, res)
+            proc_ids[pid] = create_cloud_proc_check(pid)
+        else:
+            print("Failed to run:", pid, res, result)
+    else:
+        print("Failed to connect:", pid, res)
 
 while len(proc_ids):
     pid, msg = proc_ids.popitem()
     pf = Pfurl(**default, msg=msg)
-    res = json.loads(pf())  # TODO: Check if succsses
-    print("Check:", pid, res)
-    if not res['status']:  # not done
-        proc_ids[pid] = msg
-        time.sleep(5)
+    res = pf()
+    if res:
+        result = json.loads(res)
+        if result['status']:
+            print("Finished:", pid, res, result)
+            continue
+        else:
+            print("Still going:", pid, res, result)
+    else:
+        print("Failed to connect:", pid, res)
+    time.sleep(10)
+    proc_ids[pid] = msg
 
 # Process output
 # results = np.load("~/nirs/out/{}/out.npz".format(pid))
