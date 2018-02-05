@@ -22,24 +22,31 @@ def simulate(spec, wavelength):
     cfg.prop = create_prop(spec, wavelength)
     run_count = spec.get('run_count', 1)
     seeds = np.asarray(spec.get('seeds', np.random.randint(0xFFFF, size=run_count)))
-    results = []
+    tof_domain = np.append(np.arange(cfg.tstart, cfg.tend, cfg.tstep), cfg.tend)
+    c = 2.998e+11 # speed of light in mm / s
+    n1, n2 = len(cfg.detpos), len(tof_domain)
+    photon_counts = np.zeros((n1, n2), np.int64)
+    phiTD = np.zeros((n1, n2), np.float64)
+    fslice = None
     for seed in seeds:
         cfg.seed = int(seed)
         result = cfg.run(2)
-        if result["exportdetected"].shape[1] >= cfg.maxdetphoton:
-            raise Exception("Too many photons detected({}), check nphoton({}) and maxdetphoton({})".format(result["exportdetected"].shape, cfg.nphoton, cfg.maxdetphoton))
-        results.append(result)
-    detp = np.concatenate([result["exportdetected"] for result in results], axis=1)
-    fluence = sum(result["exportfield"] for result in results) / len(seeds)
-    tof_domain = np.append(np.arange(cfg.tstart, cfg.tend, cfg.tstep), cfg.tend)
-    c = 2.998e+11 # speed of light in mm / s
-    detTOF = (cfg.prop[1:, 3] @ detp[2:(len(cfg.prop) + 1)]) / c
-    tofBins = np.digitize(detTOF, tof_domain) - 1
-    detBins = detp[0].astype(np.intc) - 1
-    n1, n2 = len(cfg.detpos), len(tof_domain)
-    photon_counts = np.histogram(detBins*n2+tofBins, np.arange(n1*n2+1))[0].reshape((n1, n2))
-    # photon_counts = np.histogramdd((detBins, tofBins), (np.arange(n1+1), np.arange(n2+1)))[0].astype(np.intc)
-    partialVec = np.exp(-cfg.prop[1:, 0] @ detp[2:(len(cfg.prop) + 1)])
-    phiTD = np.zeros((n1, n2), np.float32)
-    np.add.at(phiTD, (detBins, tofBins), partialVec)
-    return {'Photons': photon_counts, 'Phi': phiTD, 'Seeds': seeds, 'Slice': fluence[spec['slice']]}
+        detp = result["exportdetected"]
+        if detp.shape[1] >= cfg.maxdetphoton:
+            raise Exception("Too many photons detected: {}".format(detp.shape[1]))
+        tofBins = np.digitize(cfg.prop[1:, 3] @ detp[2:(len(cfg.prop) + 1)] / c, tof_domain) - 1
+        detBins = detp[0].astype(np.intc) - 1
+        photon_counts += np.bincount(detBins*n2+tofBins).reshape((n1, n2))
+        np.add.at(phiTD, (detBins, tofBins), np.exp(-cfg.prop[1:, 0] @ detp[2:(len(cfg.prop) + 1)]))
+        if 'slice' in spec:
+            if fslice is None:
+                fslice = result["exportfield"][spec['slice']].copy()
+            else:
+                fslice += result["exportfield"][spec['slice']]
+        del detp
+        del result["exportdetected"]
+        del result["exportfield"]
+        del result
+    if 'slice' in spec:
+        fslice /= len(seeds)
+    return {'Photons': photon_counts, 'Phi': phiTD, 'Seeds': seeds, 'Slice': fslice}
