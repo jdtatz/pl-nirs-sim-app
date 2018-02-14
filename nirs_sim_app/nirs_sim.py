@@ -24,29 +24,25 @@ def simulate(spec, wavelength):
     seeds = np.asarray(spec.get('seeds', np.random.randint(0xFFFF, size=run_count)))
     tof_domain = np.append(np.arange(cfg.tstart, cfg.tend, cfg.tstep), cfg.tend)
     c = 2.998e+11 # speed of light in mm / s
-    n1, n2 = len(cfg.detpos), len(tof_domain)
-    photon_counts = np.zeros((n1, n2), np.int64)
+    n1, n2 = len(cfg.detpos), len(tof_domain) - 1
     phiTD = np.zeros((n1, n2), np.float64)
-    fslice = None
+    photon_counts = 0
+    fslice = 0
     for seed in seeds:
         cfg.seed = int(seed)
         result = cfg.run(2)
         detp = result["exportdetected"]
         if detp.shape[1] >= cfg.maxdetphoton:
             raise Exception("Too many photons detected: {}".format(detp.shape[1]))
-        tofBins = np.digitize(cfg.prop[1:, 3] @ detp[2:(len(cfg.prop) + 1)] / c, tof_domain) - 1
         detBins = detp[0].astype(np.intc) - 1
-        photon_counts += np.bincount(detBins*n2+tofBins).reshape((n1, n2))
+        tofBins = np.digitize(cfg.prop[1:, 3] @ detp[2:(len(cfg.prop) + 1)] / c, tof_domain) - 1
+        tofBins[tofBins == n2] -= 1
         np.add.at(phiTD, (detBins, tofBins), np.exp(-cfg.prop[1:, 0] @ detp[2:(len(cfg.prop) + 1)]))
-        if 'slice' in spec:
-            if fslice is None:
-                fslice = result["exportfield"][spec['slice']].copy()
-            else:
-                fslice += result["exportfield"][spec['slice']]
+        photon_counts += np.bincount(detBins*n2+tofBins, minlength=n1*n2).reshape((n1, n2))
+        fslice += result["exportfield"][spec['slice']]
+        del tofBins
+        del detBins
         del detp
-        del result["exportdetected"]
-        del result["exportfield"]
         del result
-    if 'slice' in spec:
-        fslice /= len(seeds)
+    fslice /= run_count
     return {'Photons': photon_counts, 'Phi': phiTD, 'Seeds': seeds, 'Slice': fslice}
