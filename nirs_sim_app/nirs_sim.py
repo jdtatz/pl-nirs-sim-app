@@ -59,8 +59,6 @@ def simulate(spec, wavelength):
             raise Exception("Too many photons detected: {}".format(detp.shape[1]))
         analysis(detp, cfg.prop, tof_domain, tau, k, BFi, ndet, ntof, nmedia, photon_counts, paths, phiTD, g1_top)
         fslice += result["fluence"][spec['slice']]
-        del tofBins
-        del detBins
         del detp
         del result
     fslice /= run_count
