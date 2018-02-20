@@ -4,7 +4,7 @@ FROM nvidia/cuda:9.1-devel as builder
 
 WORKDIR /usr/src/mcx
 COPY ["mcx", "/usr/src/mcx"]
-RUN make lib/libmcx && mv lib/libmcx.so pymcx/
+RUN make && mv lib/libmcx.so pymcx/
 
 
 FROM python:3-slim
