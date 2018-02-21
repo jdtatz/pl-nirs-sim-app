@@ -24,13 +24,13 @@ def analysis(detp, prop, tof_domain, tau, k, BFi, ndet, ntof, nmedia, photon_cou
     detBins = detp[0].astype(np.intc) - 1
     tofBins = np.digitize(prop[1:, 3] @ detp[2:(2+nmedia)] / c, tof_domain) - 1
     tofBins[tofBins == ntof] -= 1
-    pathV = detp[2:(2+nmedia)].T
-    phiV = np.exp(-prop[1:, 0] @ detp[2:(2+nmedia)])
-    prep = (-2*k**2*BFi).astype(np.float32) @ detp[(2+nmedia):(2+2*nmedia)]
+    path = -prop[1:, 0] @ detp[2:(2+nmedia)]
+    phis = np.exp(path)
+    prep = -2*k**2*BFi @ detp[(2+nmedia):(2+2*nmedia)]
     for i in range(len(detBins)):
         photon_counts[detBins[i], tofBins[i]] += 1
-        paths[detBins[i], tofBins[i]] += pathV[i]
-        phiTD[detBins[i], tofBins[i]] += phiV[i]
+        paths[detBins[i], tofBins[i]] += detp[2:(2+nmedia), i]
+        phiTD[detBins[i], tofBins[i]] += phis[i]
         for j in range(len(tau)):
             g1_top[detBins[i], j] += np.exp(prep[i] * tau[j] + path[i])
 
@@ -42,7 +42,7 @@ def simulate(spec, wavelength):
     seeds = np.asarray(spec.get('seeds', np.random.randint(0xFFFF, size=run_count)))
     tof_domain = sepc.get('tof_domain', np.append(np.arange(cfg.tstart, cfg.tend, cfg.tstep), cfg.tend))
     c = 2.998e+11 # speed of light in mm / s
-    k = (2*np.pi*cfg.prop[1:, 3]/(wavelength*10**-6))
+    k = (2*np.pi*cfg.prop[1:, 3]/(wavelength*1e-6))
     tau = spec.get('tau', np.logspace(-8, -2))
     BFi = spec.get('BFi', 3e-6)
     ndet, ntof, nmedia = len(cfg.detpos), len(tof_domain) - 1, len(cfg.prop) - 1
