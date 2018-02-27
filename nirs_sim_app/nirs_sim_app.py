@@ -63,11 +63,12 @@ class Nirs_sim_app(ChrisApp):
         """
         # Load simulation params
         with lzma.open(os.path.join(options.inputdir, options.spec_file)) as f_in:
-            spec = pickle.loads(f_in.read())
+            spec = pickle.load(f_in)
         # Run simulation
         results = simulate(spec, options.wavelength)
         # Save Results
-        np.savez_compressed(os.path.join(options.outputdir, "out%d.npz" % options.wavelength), **results)
+        with lzma.open(os.path.join(options.outputdir, "out%d.xz" % options.wavelength), 'wb') as f_out:
+            pickle.dump(results, f_out)
 
 
 # ENTRYPOINT
