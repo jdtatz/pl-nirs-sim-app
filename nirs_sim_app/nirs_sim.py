@@ -19,28 +19,29 @@ def create_prop(spec, wavelen):
 
 
 @nb.jit(nopython=True, nogil=True, parallel=False)
-def analysis(detp, prop, tof_domain, tau, wavelength, BFi, freq, ndet, ntof, nmedia, pcounts, paths, phiTD, phiFD, g1_top):
+def analysis(detp, prop, tof_domain, tau, wavelength, BFi, freq, ndet, ntof, nmedia, pcounts, paths, phiTD, phiFD, g1_top, phiDist):
     c = 2.998e+11 # speed of light in mm / s
     detBins = detp[0].astype(np.intc) - 1
-    tofBins = np.digitize(prop[1:, 3] @ detp[2:(2+nmedia)], c * tof_domain) - 1
-    tofBins[tofBins == ntof] -= 1
+    tofBins = np.minimum(np.digitize(prop[1:, 3] @ detp[2:(2+nmedia)], c * tof_domain), ntof) - 1
+    distBins = np.minimum(np.digitize(prop[1:, 3] * detp[2:(2+nmedia)].T, c * tof_domain), ntof) - 1
     path = -prop[1:, 0] @ detp[2:(2+nmedia)]
     phis = np.exp(path)
-    fwave = (-prop[1:, 0] + 2j * np.pi * freq * prop[1:, 3] / c).astype(np.complex64)
-    fds = np.exp(fwave @ detp[2:(2+nmedia)].astype(np.complex64))
-    k = (2*np.pi*prop[1:, 3]/(wavelength*1e-6))
-    prep = (-2*k**2*BFi).astype(np.float32) @ detp[(2+nmedia):(2+2*nmedia)]
+    fds = np.exp((-prop[1:, 0] + 2j * np.pi * freq * prop[1:, 3] / c).astype(np.complex64) @ detp[2:(2+nmedia)].astype(np.complex64))
+    prep = (-2*(2*np.pi*prop[1:, 3]/(wavelength*1e-6))**2*BFi).astype(np.float32) @ detp[(2+nmedia):(2+2*nmedia)]
     for i in range(len(detBins)):
         pcounts[detBins[i], tofBins[i]] += 1
         paths[detBins[i], tofBins[i]] += detp[2:(2+nmedia), i]
         phiTD[detBins[i], tofBins[i]] += phis[i]
         phiFD[detBins[i]] += fds[i]
+        for l in range(nmedia):
+            phiDist[detBins[i], distBins[i, l], l] += phis[i]
         for j in range(len(tau)):
             g1_top[detBins[i], j] += np.exp(prep[i] * tau[j] + path[i])
 
 
 def simulate(spec, wavelength):
     cfg = spec['mcx']
+    cfg.ismomentum = True
     cfg.prop = create_prop(spec, wavelength)
     run_count = spec.get('run_count', 1)
     seeds = np.asarray(spec.get('seeds', np.random.randint(0xFFFF, size=run_count)))
@@ -54,6 +55,7 @@ def simulate(spec, wavelength):
     paths = np.zeros((ndet, ntof, nmedia), np.float64)
     pcounts = np.zeros((ndet, ntof), np.int64)
     g1_top = np.zeros((ndet, len(tau)), np.float64)
+    phiDist = np.zeros((ndet, ntof, nmedia), np.float64)
     fslice = 0
     for seed in seeds:
         cfg.seed = int(seed)
@@ -61,11 +63,12 @@ def simulate(spec, wavelength):
         detp = result["detphoton"]
         if detp.shape[1] >= cfg.maxdetphoton:
             raise Exception("Too many photons detected: {}".format(detp.shape[1]))
-        analysis(detp, cfg.prop, tof_domain, tau, wavelength, BFi, freq, ndet, ntof, nmedia, pcounts, paths, phiTD, phiFD, g1_top)
+        analysis(detp, cfg.prop, tof_domain, tau, wavelength, BFi, freq, ndet, ntof, nmedia, pcounts, paths, phiTD, phiFD, g1_top, phiDist)
         fslice += result["fluence"][spec['slice']]
         del detp
         del result
     fslice /= run_count
     paths /= pcounts[:, :, np.newaxis]
     g1 = g1_top / np.sum(phiTD, axis=1)[:, np.newaxis]
-    return {'Photons': pcounts, 'Paths': paths, 'PhiTD': phiTD, 'PhiFD': phiFD, 'Seeds': seeds, 'Slice': fslice, 'g1': g1}
+    phiDist /= np.sum(phiTD, axis=1)[:, np.newaxis, np.newaxis]
+    return {'Photons': pcounts, 'Paths': paths, 'PhiTD': phiTD, 'PhiFD': phiFD, 'PhiDist': phiDist, 'Seeds': seeds, 'Slice': fslice, 'g1': g1}
